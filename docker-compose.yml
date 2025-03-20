@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # SQL Server service
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: expense-splitter-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrongPassword123
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - expense-splitter-network
+    restart: always
+
+  # Backend API service
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: expense-splitter-api
+    ports:
+      - "7156:80"
+    depends_on:
+      - sqlserver
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ExpenseSplitterDb;User Id=sa;Password=YourStrongPassword123;TrustServerCertificate=True;
+      - AllowedOrigins=http://localhost:3000
+    networks:
+      - expense-splitter-network
+    restart: always
+
+  # Frontend service
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: expense-splitter-client
+    ports:
+      - ":80"
+    depends_on:
+      - api
+    environment:
+      - REACT_APP_API_URL=http://localhost:7156/api
+    networks:
+      - expense-splitter-network
+    restart: always
+
+networks:
+  expense-splitter-network:
+    driver: bridge
+
+volumes:
+  sqlserver-data:
